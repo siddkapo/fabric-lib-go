@@ -386,3 +386,48 @@ func (opts *X509PublicKeyImportOpts) Algorithm() string {
 func (opts *X509PublicKeyImportOpts) Ephemeral() bool {
 	return opts.Temporary
 }
+
+// PQ identifiers select exact pure schemes; MLDSA44 retains its existing name.
+const (
+	MLDSA65         = "MLDSA65"
+	MLDSA87         = "MLDSA87"
+	SLHDSASHA2128s  = "SLH-DSA-SHA2-128s"
+	SLHDSASHA2128f  = "SLH-DSA-SHA2-128f"
+	SLHDSASHA2192s  = "SLH-DSA-SHA2-192s"
+	SLHDSASHA2192f  = "SLH-DSA-SHA2-192f"
+	SLHDSASHA2256s  = "SLH-DSA-SHA2-256s"
+	SLHDSASHA2256f  = "SLH-DSA-SHA2-256f"
+	SLHDSASHAKE128s = "SLH-DSA-SHAKE-128s"
+	SLHDSASHAKE128f = "SLH-DSA-SHAKE-128f"
+	SLHDSASHAKE192s = "SLH-DSA-SHAKE-192s"
+	SLHDSASHAKE192f = "SLH-DSA-SHAKE-192f"
+	SLHDSASHAKE256s = "SLH-DSA-SHAKE-256s"
+	SLHDSASHAKE256f = "SLH-DSA-SHAKE-256f"
+)
+
+// PQKeyGenOpts selects the exact scheme for key generation.
+type PQKeyGenOpts struct {
+	Scheme    string
+	Temporary bool
+}
+
+func (opts *PQKeyGenOpts) Algorithm() string { return opts.Scheme }
+func (opts *PQKeyGenOpts) Ephemeral() bool   { return opts.Temporary }
+
+// PQPublicKeyImportOpts selects the exact scheme for raw public key import.
+type PQPublicKeyImportOpts struct {
+	Scheme    string
+	Temporary bool
+}
+
+func (opts *PQPublicKeyImportOpts) Algorithm() string { return opts.Scheme }
+func (opts *PQPublicKeyImportOpts) Ephemeral() bool   { return opts.Temporary }
+
+// PQPrivateKeyImportOpts selects the exact scheme for raw private key import.
+type PQPrivateKeyImportOpts struct {
+	Scheme    string
+	Temporary bool
+}
+
+func (opts *PQPrivateKeyImportOpts) Algorithm() string { return opts.Scheme }
+func (opts *PQPrivateKeyImportOpts) Ephemeral() bool   { return opts.Temporary }

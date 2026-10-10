@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cloudflare/circl/sign"
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 )
 
@@ -165,6 +166,9 @@ func privateKeyToPEM(privateKey interface{}, pwd []byte) ([]byte, error) {
 			},
 		), nil
 
+	case sign.PrivateKey:
+		// Preserve the variant in the PEM label.
+		return pqKeyToPEM(k, pwd, true)
 	default:
 		return nil, errors.New("invalid key type. It must be *ecdsa.PrivateKey, *ed25519.PrivateKey or *rsa.PrivateKey")
 	}
@@ -226,6 +230,9 @@ func privateKeyToEncryptedPEM(privateKey interface{}, pwd []byte) ([]byte, error
 
 		return pem.EncodeToMemory(block), nil
 
+	case sign.PrivateKey:
+		// Preserve the variant in the PEM label.
+		return pqKeyToPEM(k, pwd, true)
 	default:
 		return nil, errors.New("invalid key type. It must be *ecdsa.PrivateKey or *ed25519.PrivateKey")
 	}
@@ -275,6 +282,10 @@ func pemToPrivateKey(raw []byte, pwd []byte) (interface{}, error) {
 		if block.Type == mldsa44PrivateKeyPEM {
 			return parseMLDSA44PrivateKey(decrypted)
 		}
+		// Decode using the label, since key size alone cannot identify SLH-DSA.
+		if a, ok := pqPEMAlgorithm(block.Type, true); ok {
+			return a.Scheme().UnmarshalBinaryPrivateKey(decrypted)
+		}
 
 		key, err := derToPrivateKey(decrypted)
 		if err != nil {
@@ -284,6 +295,10 @@ func pemToPrivateKey(raw []byte, pwd []byte) (interface{}, error) {
 	}
 	if block.Type == mldsa44PrivateKeyPEM {
 		return parseMLDSA44PrivateKey(block.Bytes)
+	}
+	// Decode using the label, since key size alone cannot identify SLH-DSA.
+	if a, ok := pqPEMAlgorithm(block.Type, true); ok {
+		return a.Scheme().UnmarshalBinaryPrivateKey(block.Bytes)
 	}
 
 	cert, err := derToPrivateKey(block.Bytes)
@@ -404,6 +419,9 @@ func publicKeyToPEM(publicKey interface{}, pwd []byte) ([]byte, error) {
 		}
 		return pem.EncodeToMemory(&pem.Block{Type: mldsa44PublicKeyPEM, Bytes: k.Bytes()}), nil
 
+	case sign.PublicKey:
+		// Preserve the variant in the PEM label.
+		return pqKeyToPEM(k, pwd, false)
 	default:
 		return nil, errors.New("invalid key type. It must be *ecdsa.PublicKey, *ed25519.PublicKey or *rsa.PublicKey")
 	}
@@ -460,6 +478,9 @@ func publicKeyToEncryptedPEM(publicKey interface{}, pwd []byte) ([]byte, error) 
 			return nil, err
 		}
 		return pem.EncodeToMemory(block), nil
+	case sign.PublicKey:
+		// Preserve the variant in the PEM label.
+		return pqKeyToPEM(k, pwd, false)
 	default:
 		return nil, errors.New("invalid key type. It must be *ecdsa.PublicKey or *ed25519.PublicKey")
 	}
@@ -488,6 +509,10 @@ func pemToPublicKey(raw []byte, pwd []byte) (interface{}, error) {
 		if block.Type == mldsa44PublicKeyPEM {
 			return parseMLDSA44PublicKey(decrypted)
 		}
+		// Decode using the label, since key size alone cannot identify SLH-DSA.
+		if a, ok := pqPEMAlgorithm(block.Type, false); ok {
+			return a.Scheme().UnmarshalBinaryPublicKey(decrypted)
+		}
 
 		key, err := derToPublicKey(decrypted)
 		if err != nil {
@@ -497,6 +522,10 @@ func pemToPublicKey(raw []byte, pwd []byte) (interface{}, error) {
 	}
 	if block.Type == mldsa44PublicKeyPEM {
 		return parseMLDSA44PublicKey(block.Bytes)
+	}
+	// Decode using the label, since key size alone cannot identify SLH-DSA.
+	if a, ok := pqPEMAlgorithm(block.Type, false); ok {
+		return a.Scheme().UnmarshalBinaryPublicKey(block.Bytes)
 	}
 
 	cert, err := derToPublicKey(block.Bytes)

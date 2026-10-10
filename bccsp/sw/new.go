@@ -122,5 +122,12 @@ func NewWithParams(securityLevel int, hashFamily string, keyStore bccsp.KeyStore
 	swbccsp.AddWrapper(reflect.TypeOf(&bccsp.MLDSA44PrivateKeyImportOpts{}), &mldsa44PrivateKeyImportOptsKeyImporter{})
 	swbccsp.AddWrapper(reflect.TypeOf(&bccsp.MLDSA44PublicKeyImportOpts{}), &mldsa44PublicKeyImportOptsKeyImporter{})
 
+	// Shared adapters cover all registered PQ variants; legacy MLDSA44 options still work.
+	swbccsp.AddWrapper(reflect.TypeOf(&pqPrivateKey{}), &pqSigner{})
+	swbccsp.AddWrapper(reflect.TypeOf(&pqPrivateKey{}), &pqVerifier{})
+	swbccsp.AddWrapper(reflect.TypeOf(&pqPublicKey{}), &pqVerifier{})
+	swbccsp.AddWrapper(reflect.TypeOf(&bccsp.PQKeyGenOpts{}), &pqKeyGenerator{})
+	swbccsp.AddWrapper(reflect.TypeOf(&bccsp.PQPrivateKeyImportOpts{}), &pqPrivateKeyImporter{})
+	swbccsp.AddWrapper(reflect.TypeOf(&bccsp.PQPublicKeyImportOpts{}), &pqPublicKeyImporter{})
 	return swbccsp, nil
 }
