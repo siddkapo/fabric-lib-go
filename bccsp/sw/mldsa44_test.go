@@ -79,7 +79,7 @@ func BenchmarkMLDSA44Sign(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(message)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := csp.Sign(privateKey, message, nil)
 		if err != nil {
 			b.Fatal(err)
@@ -100,7 +100,7 @@ func BenchmarkMLDSA44Verify(b *testing.B) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(message)))
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		valid, err := csp.Verify(publicKey, signature, message, nil)
 		if err != nil || !valid {
 			b.Fatalf("valid=%v err=%v", valid, err)

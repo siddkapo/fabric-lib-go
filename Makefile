@@ -10,6 +10,8 @@
 #   - checks        - runs vet and go format checks
 
 GOTOOLS_BINDIR ?= $(shell go env GOPATH)/bin
+# Let check scripts find the tools installed by this Makefile.
+export PATH := $(abspath $(GOTOOLS_BINDIR)):$(PATH)
 
 .PHONY: all checks
 
@@ -18,7 +20,7 @@ all: checks unit-tests
 checks: license vet gotools fmtcheck
 
 .PHONY: fmtcheck
-fmtcheck:
+fmtcheck: gotools
 	@echo "Checking source code formatting..."
 	@scripts/check-go-formatting.sh
 
