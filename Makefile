@@ -12,6 +12,9 @@
 GOTOOLS_BINDIR ?= $(shell go env GOPATH)/bin
 # Let check scripts find the tools installed by this Makefile.
 export PATH := $(abspath $(GOTOOLS_BINDIR)):$(PATH)
+LIBOQS_PREFIX ?= $(abspath build/liboqs)
+# SLH-DSA tests need more time when race detection and coverage are enabled.
+export GO_TEST_TIMEOUT ?= 30m
 
 .PHONY: all checks
 
@@ -43,3 +46,16 @@ gotools:
 unit-tests:
 	@echo "Running unit tests..."
 	@scripts/run-unit-tests.sh
+
+# Keep native dependencies in the ignored build tree; ordinary builds stay unchanged.
+.PHONY: liboqs build-pq test-pq
+liboqs: $(LIBOQS_PREFIX)/lib/pkgconfig/liboqs.pc
+
+$(LIBOQS_PREFIX)/lib/pkgconfig/liboqs.pc: scripts/build-liboqs.sh
+	scripts/build-liboqs.sh "$(LIBOQS_PREFIX)"
+
+build-pq: liboqs
+	CGO_ENABLED=1 PKG_CONFIG_PATH="$(LIBOQS_PREFIX)/lib/pkgconfig:$(PKG_CONFIG_PATH)" go build -mod=vendor -tags liboqs ./...
+
+test-pq: liboqs
+	CGO_ENABLED=1 PKG_CONFIG_PATH="$(LIBOQS_PREFIX)/lib/pkgconfig:$(PKG_CONFIG_PATH)" go test -timeout "$(GO_TEST_TIMEOUT)" -mod=vendor -tags liboqs ./bccsp/...

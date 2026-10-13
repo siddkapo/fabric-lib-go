@@ -32,3 +32,17 @@ jobs:
         run: scripts/setup_hsm.sh
       - name: Run Checks and Unit Tests
         run: make checks unit-tests GOTOOLS_BINDIR=${{ env.GOPATH }}/bin
+
+  falcon-tests:
+    name: Falcon BCCSP Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.GO_VER }}
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config curl
+      # Exercise the optional backend on a fresh clone, independently of SoftHSM.
+      - name: Build and test with liboqs
+        run: make build-pq test-pq

@@ -7,6 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package sw
 
 import (
+	"crypto"
+	"crypto/rand"
 	"errors"
 	"fmt"
 
@@ -15,7 +17,7 @@ import (
 	"github.com/hyperledger/fabric-lib-go/bccsp/pq"
 )
 
-// One CIRCL adapter handles all variants selected by the shared registry.
+// Shared adapters handle every backend in the PQ registry.
 type pqKeyGenerator struct{}
 
 func (*pqKeyGenerator) KeyGen(opts bccsp.KeyGenOpts) (bccsp.Key, error) {
@@ -86,9 +88,12 @@ func (*pqSigner) Sign(k bccsp.Key, msg []byte, opts bccsp.SignerOpts) ([]byte, e
 		return nil, err
 	}
 	scheme := key.privKey.Scheme()
-	signature := scheme.Sign(key.privKey, msg, nil)
-	// CIRCL's SLH-DSA Scheme returns nil if randomized signing fails.
-	if len(signature) != scheme.SignatureSize() {
+	// crypto.Signer preserves backend errors, including liboqs failures.
+	signature, err := key.privKey.Sign(rand.Reader, msg, crypto.Hash(0))
+	if err != nil {
+		return nil, err
+	}
+	if !pq.ValidSignatureSize(scheme, len(signature)) {
 		return nil, errors.New("PQ signing failed")
 	}
 	return signature, nil
@@ -114,7 +119,7 @@ func (*pqVerifier) Verify(k bccsp.Key, signature, msg []byte, opts bccsp.SignerO
 	if pub == nil {
 		return false, errors.New("invalid PQ verification key")
 	}
-	if len(signature) != pub.Scheme().SignatureSize() {
+	if !pq.ValidSignatureSize(pub.Scheme(), len(signature)) {
 		return false, nil
 	}
 	return pub.Scheme().Verify(pub, msg, signature, nil), nil

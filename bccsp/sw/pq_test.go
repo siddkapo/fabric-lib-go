@@ -46,7 +46,7 @@ func TestPQVariants(t *testing.T) {
 			msg := []byte("full Fabric message")
 			sig, err := bridge.Sign(rand.Reader, msg, crypto.Hash(0))
 			require.NoError(t, err)
-			require.Len(t, sig, a.Scheme().SignatureSize())
+			require.True(t, pq.ValidSignatureSize(a.Scheme(), len(sig)))
 			for _, k := range []bccsp.Key{key, imported} {
 				valid, err := csp.Verify(k, sig, msg, nil)
 				require.NoError(t, err)

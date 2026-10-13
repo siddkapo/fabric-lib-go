@@ -42,7 +42,7 @@ func TestEnrollmentPrivateKey(t *testing.T) {
 			require.Error(t, err)
 			require.True(t, found)
 			// Equal-sized key material must still match the certificate's public key.
-			public[0] ^= 1
+			public[len(public)-1] ^= 1
 			cert.Extensions[0].Value, err = asn1.Marshal(info)
 			require.NoError(t, err)
 			_, found, err = PrivateKeyFromPEM(cert, encoded)

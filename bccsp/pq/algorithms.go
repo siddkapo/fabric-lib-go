@@ -12,6 +12,7 @@ import (
 	"encoding"
 	"encoding/asn1"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/cloudflare/circl/sign"
@@ -24,28 +25,28 @@ import (
 // Algorithm keeps issuance, key storage, and extension parsing in agreement.
 type Algorithm struct {
 	Name    string
-	oid     int
+	oid     asn1.ObjectIdentifier
 	pemName string
 	scheme  sign.Scheme
 }
 
-// These are NIST's pure-scheme OIDs; prehash modes are not enabled by this registry.
+// CIRCL pure schemes are always available; tagged backends register additional schemes.
 var algorithms = []Algorithm{
-	{"MLDSA44", 17, "ML-DSA-44", mldsa44.Scheme()},
-	{"MLDSA65", 18, "ML-DSA-65", mldsa65.Scheme()},
-	{"MLDSA87", 19, "ML-DSA-87", mldsa87.Scheme()},
-	{"SLH-DSA-SHA2-128s", 20, "SLH-DSA-SHA2-128s", slhdsa.SHA2_128s.Scheme()},
-	{"SLH-DSA-SHA2-128f", 21, "SLH-DSA-SHA2-128f", slhdsa.SHA2_128f.Scheme()},
-	{"SLH-DSA-SHA2-192s", 22, "SLH-DSA-SHA2-192s", slhdsa.SHA2_192s.Scheme()},
-	{"SLH-DSA-SHA2-192f", 23, "SLH-DSA-SHA2-192f", slhdsa.SHA2_192f.Scheme()},
-	{"SLH-DSA-SHA2-256s", 24, "SLH-DSA-SHA2-256s", slhdsa.SHA2_256s.Scheme()},
-	{"SLH-DSA-SHA2-256f", 25, "SLH-DSA-SHA2-256f", slhdsa.SHA2_256f.Scheme()},
-	{"SLH-DSA-SHAKE-128s", 26, "SLH-DSA-SHAKE-128s", slhdsa.SHAKE_128s.Scheme()},
-	{"SLH-DSA-SHAKE-128f", 27, "SLH-DSA-SHAKE-128f", slhdsa.SHAKE_128f.Scheme()},
-	{"SLH-DSA-SHAKE-192s", 28, "SLH-DSA-SHAKE-192s", slhdsa.SHAKE_192s.Scheme()},
-	{"SLH-DSA-SHAKE-192f", 29, "SLH-DSA-SHAKE-192f", slhdsa.SHAKE_192f.Scheme()},
-	{"SLH-DSA-SHAKE-256s", 30, "SLH-DSA-SHAKE-256s", slhdsa.SHAKE_256s.Scheme()},
-	{"SLH-DSA-SHAKE-256f", 31, "SLH-DSA-SHAKE-256f", slhdsa.SHAKE_256f.Scheme()},
+	{"MLDSA44", nistSignatureOID(17), "ML-DSA-44", mldsa44.Scheme()},
+	{"MLDSA65", nistSignatureOID(18), "ML-DSA-65", mldsa65.Scheme()},
+	{"MLDSA87", nistSignatureOID(19), "ML-DSA-87", mldsa87.Scheme()},
+	{"SLH-DSA-SHA2-128s", nistSignatureOID(20), "SLH-DSA-SHA2-128s", slhdsa.SHA2_128s.Scheme()},
+	{"SLH-DSA-SHA2-128f", nistSignatureOID(21), "SLH-DSA-SHA2-128f", slhdsa.SHA2_128f.Scheme()},
+	{"SLH-DSA-SHA2-192s", nistSignatureOID(22), "SLH-DSA-SHA2-192s", slhdsa.SHA2_192s.Scheme()},
+	{"SLH-DSA-SHA2-192f", nistSignatureOID(23), "SLH-DSA-SHA2-192f", slhdsa.SHA2_192f.Scheme()},
+	{"SLH-DSA-SHA2-256s", nistSignatureOID(24), "SLH-DSA-SHA2-256s", slhdsa.SHA2_256s.Scheme()},
+	{"SLH-DSA-SHA2-256f", nistSignatureOID(25), "SLH-DSA-SHA2-256f", slhdsa.SHA2_256f.Scheme()},
+	{"SLH-DSA-SHAKE-128s", nistSignatureOID(26), "SLH-DSA-SHAKE-128s", slhdsa.SHAKE_128s.Scheme()},
+	{"SLH-DSA-SHAKE-128f", nistSignatureOID(27), "SLH-DSA-SHAKE-128f", slhdsa.SHAKE_128f.Scheme()},
+	{"SLH-DSA-SHAKE-192s", nistSignatureOID(28), "SLH-DSA-SHAKE-192s", slhdsa.SHAKE_192s.Scheme()},
+	{"SLH-DSA-SHAKE-192f", nistSignatureOID(29), "SLH-DSA-SHAKE-192f", slhdsa.SHAKE_192f.Scheme()},
+	{"SLH-DSA-SHAKE-256s", nistSignatureOID(30), "SLH-DSA-SHAKE-256s", slhdsa.SHAKE_256s.Scheme()},
+	{"SLH-DSA-SHAKE-256f", nistSignatureOID(31), "SLH-DSA-SHAKE-256f", slhdsa.SHAKE_256f.Scheme()},
 }
 
 // Algorithms returns a copy so callers cannot change the supported algorithms.
@@ -61,18 +62,29 @@ func Lookup(name string) (Algorithm, bool) {
 	return Algorithm{}, false
 }
 
-// OID identifies the exact pure scheme; certificate parameters stay absent.
-// The prefix 2.16.840.1.101.3.4.3 identifies NIST signature algorithms;
-// the final integer selects the variant (e.g., 17 is ML-DSA-44).
-// Registry: https://csrc.nist.gov/projects/computer-security-objects-register/algorithm-registration
+// OID identifies the exact scheme; certificate parameters stay absent.
 func (a Algorithm) OID() asn1.ObjectIdentifier {
-	return asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, a.oid}
+	return append(asn1.ObjectIdentifier(nil), a.oid...)
+}
+
+// 2.16.840.1.101.3.4.3 is NIST's signature branch; the last integer selects the variant.
+// Registry: https://csrc.nist.gov/projects/computer-security-objects-register/algorithm-registration
+func nistSignatureOID(variant int) asn1.ObjectIdentifier {
+	return asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, variant}
+}
+
+// ValidSignatureSize accepts a bounded variable size only when the backend declares it.
+func ValidSignatureSize(scheme sign.Scheme, size int) bool {
+	if variable, ok := scheme.(interface{ ValidSignatureSize(int) bool }); ok {
+		return variable.ValidSignatureSize(size)
+	}
+	return size == scheme.SignatureSize()
 }
 
 // PEMType records the exact variant; raw SLH-DSA key bytes do not identify it.
 func (a Algorithm) PEMType() string { return a.pemName + " PRIVATE KEY" }
 
-// GenerateKey uses the selected scheme for both ML-DSA and SLH-DSA.
+// GenerateKey uses the selected backend.
 func (a Algorithm) GenerateKey() (crypto.Signer, error) {
 	_, key, err := a.scheme.GenerateKey()
 	return key, err
@@ -85,7 +97,7 @@ func (a Algorithm) ParsePrivateKey(raw []byte) (crypto.Signer, error) {
 
 // ValidatePublicKey checks encoding, not possession of the matching private key.
 func (a Algorithm) ValidatePublicKey(raw []byte) error {
-	// CIRCL is the source of key sizes for every parameter set.
+	// The backend supplies the key size for each parameter set.
 	if size := a.scheme.PublicKeySize(); len(raw) != size {
 		return fmt.Errorf("invalid %s public key size: got %d, want %d", a.Name, len(raw), size)
 	}
@@ -115,6 +127,11 @@ func MarshalPublicKey(key crypto.PublicKey) (Algorithm, []byte, error) {
 		if k != nil {
 			name = k.ID.String()
 		}
+	case sign.PublicKey:
+		// Native backends identify their scheme; never infer it from key length.
+		if k != nil && !(reflect.ValueOf(k).Kind() == reflect.Ptr && reflect.ValueOf(k).IsNil()) {
+			name = k.Scheme().Name()
+		}
 	}
 	a, ok := Lookup(name)
 	if !ok {
@@ -130,5 +147,5 @@ func MarshalPublicKey(key crypto.PublicKey) (Algorithm, []byte, error) {
 	return a, raw, nil
 }
 
-// Scheme exposes the same CIRCL implementation to BCCSP and certificate tooling.
+// Scheme exposes the same backend to BCCSP and certificate tooling.
 func (a Algorithm) Scheme() sign.Scheme { return a.scheme }

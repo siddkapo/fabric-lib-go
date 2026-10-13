@@ -6,8 +6,10 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Keep race and coverage checks while allowing slower PQ variants to finish.
+test_timeout=${GO_TEST_TIMEOUT:-30m}
 time {
-    go test -race -cover ./...
-    go test -race -cover -tags "pkcs11" github.com/hyperledger/fabric-lib-go/bccsp/factory
-    go test -race -cover -tags "pkcs11" github.com/hyperledger/fabric-lib-go/bccsp/pkcs11
+    go test -timeout "$test_timeout" -race -cover ./...
+    go test -timeout "$test_timeout" -race -cover -tags "pkcs11" github.com/hyperledger/fabric-lib-go/bccsp/factory
+    go test -timeout "$test_timeout" -race -cover -tags "pkcs11" github.com/hyperledger/fabric-lib-go/bccsp/pkcs11
 }
